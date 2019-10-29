@@ -21,3 +21,5 @@ scroll down, find FPGArduino, click it and click "Install"
 
 This are the needed settings:
 ![Arduino](ArduinoFPGArduino.png)
+
+On-board peripherals and external physical connectors may be mapped to Arduino logical pin numbers in a board-specific way. In general, pushbuttons and rotary knobs are mapped to logical pins 0 to 7, LEDs from 8 to 15, slide switches from 16 to 23, and character LCD (if present) to pins 24 to 31. Pin numbers from 32 upwards are typically routed as GPIO to external connectors, such as PMODs on Xilinx / Digilent boards.
