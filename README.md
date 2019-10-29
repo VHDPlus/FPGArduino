@@ -1,7 +1,10 @@
 # FPGArduino
 This is a simplified version of the f32c 32-bit MIPS CPU written in VHDP. It supports FPGArduino for easy programming and is mainly meant for educational purposes.
 
-##Software
+## Hardware
+Copy the Repository, compile with the VHDPlus IDE and program the FPGA.
+
+## Software
 Check out [this](http://www.nxlab.fer.hr/fpgarduino/) for more information.
 
 1) Download and install the [Arduino IDE](https://www.arduino.cc/en/Main/Software) for your operating system. Versions 1.6.4 or later. If you already have a recent version there's no need to reinstall the IDE.
