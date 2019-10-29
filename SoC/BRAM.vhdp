@@ -61,12 +61,12 @@ Component BRAM
 {
     AttributeDeclaration
     {
+        constant boot_block: boot_block_type := boot_sio_mi32el;
+        
+        type bram_type is array(0 to (C_bram_size * 256 - 1)) of std_logic_vector(7 downto 0);
+
         VHDL
         {
-            constant boot_block: boot_block_type := boot_sio_mi32el;
-
-            type bram_type is array(0 to (C_bram_size * 256 - 1)) of std_logic_vector(7 downto 0);
-
             --
             -- Xilinx ISE 14.7 for Spartan-3 will abort with error about loop
             -- iteration limit >64 exceeded.  We need 128 iterations here.
@@ -91,12 +91,24 @@ Component BRAM
             end loop;
             return y;
             end boot_block_to_bram;
-
-            signal bram_0: bram_type := boot_block_to_bram(boot_block, 0);
-            signal bram_1: bram_type := boot_block_to_bram(boot_block, 1);
-            signal bram_2: bram_type := boot_block_to_bram(boot_block, 2);
-            signal bram_3: bram_type := boot_block_to_bram(boot_block, 3);
-
+        }
+        
+        signal bram_0: bram_type := boot_block_to_bram(boot_block, 0);
+        signal bram_1: bram_type := boot_block_to_bram(boot_block, 1);
+        signal bram_2: bram_type := boot_block_to_bram(boot_block, 2);
+        signal bram_3: bram_type := boot_block_to_bram(boot_block, 3);
+        
+        signal ibram_0 : std_logic_vector(7 downto 0);
+        signal ibram_1 : std_logic_vector(7 downto 0);
+        signal ibram_2 : std_logic_vector(7 downto 0);
+        signal ibram_3 : std_logic_vector(7 downto 0);
+        signal dbram_0 : std_logic_vector(7 downto 0);
+        signal dbram_1 : std_logic_vector(7 downto 0);
+        signal dbram_2 : std_logic_vector(7 downto 0);
+        signal dbram_3 : std_logic_vector(7 downto 0);
+        
+        VHDL
+        {
             -- Lattice Diamond attributes
             attribute syn_ramstyle: string;
             attribute syn_ramstyle of bram_0: signal is "no_rw_check";
@@ -117,19 +129,11 @@ Component BRAM
             attribute ramstyle of bram_1: signal is "no_rw_check";
             attribute ramstyle of bram_2: signal is "no_rw_check";
             attribute ramstyle of bram_3: signal is "no_rw_check";
-
-            signal ibram_0 : std_logic_vector(7 downto 0);
-            signal ibram_1 : std_logic_vector(7 downto 0);
-            signal ibram_2 : std_logic_vector(7 downto 0);
-            signal ibram_3 : std_logic_vector(7 downto 0);
-            signal dbram_0 : std_logic_vector(7 downto 0);
-            signal dbram_1 : std_logic_vector(7 downto 0);
-            signal dbram_2 : std_logic_vector(7 downto 0);
-            signal dbram_3 : std_logic_vector(7 downto 0);
-
-            signal write_enable : boolean;
-            signal write_strobe : boolean;
+            
         }
+        
+        signal write_enable : boolean;
+        signal write_strobe : boolean;
     }
     
     dmem_data_out <= dbram_3 & dbram_2 & dbram_1 & dbram_0;
