@@ -1,0 +1,109 @@
+--
+-- Copyright (c) 2016 Marko Zec, University of Zagreb
+--
+-- Redistribution and use in source and binary forms, with or without
+-- modification, are permitted provided that the following conditions
+-- are met:
+-- 1. Redistributions of source code must retain the above copyright
+--    notice, this list of conditions and the following disclaimer.
+-- 2. Redistributions in binary form must reproduce the above copyright
+--    notice, this list of conditions and the following disclaimer in the
+--    documentation and/or other materials provided with the distribution.
+--
+-- THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+-- ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+-- IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+-- ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+-- FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+-- DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+-- OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+-- HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+-- LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+-- OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+-- SUCH DAMAGE.
+--
+
+Component Multiplier
+(
+    clk_enable   : in std_logic;
+    start        : in boolean;
+    mult_signed  : in boolean;
+    x            : in std_logic_vector(31 downto 0);
+    y            : in std_logic_vector(31 downto 0);
+    hi_lo        : out std_logic_vector(63 downto 0);
+    done         : out boolean;
+)
+{
+    signal R_x     : std_logic_vector(63 downto 0);
+    signal R_hi_lo : std_logic_vector(63 downto 0);
+    signal R_y     : std_logic_vector(31 downto 0);
+    signal R_cmp   : std_logic_vector(31 downto 0);
+    signal R_done  : boolean;
+    
+    Process ()
+    {
+        If(rising_edge(CLK) and clk_enable = '1')
+        {
+            If(start)
+            {
+                R_done           <= false;
+                R_hi_lo          <= (others => '0');
+                R_x(31 downto 0) <= x;
+                
+                If(mult_signed and x(31) = '1')
+                {
+                    R_x(63 downto 32) <= (others => '1');
+                }
+                Else
+                {
+                    R_x(63 downto 32) <= (others => '0');
+                }
+                
+                If(mult_signed and y(31) = '1')
+                {
+                    R_y   <= STD_LOGIC_VECTOR(UNSIGNED(y) - 1);
+                    R_cmp <= (others => '1');
+                }
+                Else
+                {
+                    R_y   <= y;
+                    R_cmp <= (others => '0');
+                }
+            }
+            Elsif(R_y /= R_cmp)
+            {
+                R_done <= R_y(31 downto 1) = R_cmp(31 downto 1);
+                
+                If(R_y(0) /= R_cmp(0))
+                {
+                    If(R_cmp(0) = '0')
+                    {
+                        R_hi_lo <= STD_LOGIC_VECTOR(UNSIGNED(R_hi_lo) + UNSIGNED(R_x));
+                    }
+                    Else
+                    {
+                        R_hi_lo <= STD_LOGIC_VECTOR(UNSIGNED(R_hi_lo) - UNSIGNED(R_x));
+                    }
+                }
+                
+                If(R_y(1) = R_cmp(1))
+                {
+                    R_x <= R_x(61 downto 0) & "00";
+                    R_y <= R_cmp(1 downto 0) & R_y(31 downto 2);
+                }
+                Else
+                {
+                    R_x <= R_x(62 downto 0) & '0';
+                    R_y <= R_cmp(0) & R_y(31 downto 1);
+                }
+            }
+            Else
+            {
+                R_done <= true;
+            }
+        }
+    }
+    
+    done  <= R_done;
+    hi_lo <= R_hi_lo;
+}

@@ -1,0 +1,36 @@
+Main
+(
+    rs232_txd : out std_logic;
+    rs232_rxd : in std_logic;
+    led       : out std_logic_vector(7 downto 0);
+    gpio      : inout std_logic_vector(31 downto 0);
+    btn_left  : in std_logic;
+    btn_right : in std_logic;
+)
+{
+    signal btns: std_logic_vector(1 downto 0);
+    
+    SIGNAL clk81 : STD_LOGIC;
+  
+    NewComponent PLL
+    (
+        inclk0 => clk,
+        c0     => clk81,
+    );
+    
+    NewComponent SoC_Top
+    (
+        C_clk_freq  => 81,
+        C_debug     => false,
+        C_bram_size => 16,
+
+        CLK         => clk81,
+        sio_rxd     => rs232_rxd,
+        sio_txd     => rs232_txd,
+        simple_in   => btns,
+        simple_out  => led,
+        gpio        => gpio,
+    );
+    
+    btns <= btn_left & btn_right;
+}

@@ -1,0 +1,373 @@
+--
+-- Copyright (c) 2015 Marko Zec, University of Zagreb
+-- Copyright (c) 2016 Emard
+-- All rights reserved.
+--
+-- Redistribution and use in source and binary forms, with or without
+-- modification, are permitted provided that the following conditions
+-- are met:
+-- 1. Redistributions of source code must retain the above copyright
+--    notice, this list of conditions and the following disclaimer.
+-- 2. Redistributions in binary form must reproduce the above copyright
+--    notice, this list of conditions and the following disclaimer in the
+--    documentation and/or other materials provided with the distribution.
+--
+-- THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+-- ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+-- IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+-- ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+-- FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+-- DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+-- OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+-- HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+-- LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+-- OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+-- SUCH DAMAGE.
+--
+
+Component SoC_Top
+(
+    Include
+    (
+        IEEE.STD_LOGIC_1164,
+        IEEE.STD_LOGIC_ARITH,
+        IEEE.STD_LOGIC_UNSIGNED,
+        IEEE.MATH_REAL,
+        ieee.numeric_std,
+        f32c_pack,
+    );
+    
+    Generic
+    (
+        C_clk_freq  : integer;
+        -- CPU debugging
+        C_debug     : boolean := false;
+        -- SoC configuration options
+        C_bram_size : integer := 2    -- in KBytes
+    );
+    reset      : in std_logic := '0'; -- external RESET (or'd with RS232 BREAK)
+    --
+    sio_rxd    : in std_logic;
+    sio_txd    : out std_logic;
+    sio_break  : out std_logic;
+    simple_in  : in std_logic_vector(1 downto 0);
+    simple_out : out std_logic_vector(7 downto 0);
+
+    gpio       : inout std_logic_vector(31 downto 0);
+)
+{
+    signal imem_addr        : std_logic_vector(31 downto 2);
+    signal imem_addr_strobe : std_logic;
+    signal imem_data_ready  : std_logic;
+    signal dmem_bram_enable : std_logic;
+    signal dmem_addr        : std_logic_vector(31 downto 2);
+    signal dmem_addr_strobe : std_logic;
+    signal dmem_write       : std_logic;
+    signal dmem_data_ready  : std_logic;
+    signal dmem_byte_sel    : std_logic_vector(3 downto 0);
+    signal cpu_to_dmem      : std_logic_vector(31 downto 0);
+    signal final_to_cpu_i   : std_logic_vector(31 downto 0);
+    signal final_to_cpu_d   : std_logic_vector(31 downto 0);
+    signal bram_d_to_cpu    : std_logic_vector(31 downto 0);
+    signal bram_i_to_cpu    : std_logic_vector(31 downto 0);
+    signal bram_i_ready     : std_logic;
+    signal bram_d_ready     : std_logic;
+    signal io_to_cpu        : std_logic_vector(31 downto 0);
+    signal io_addr_strobe   : std_logic;
+    signal io_addr          : std_logic_vector(11 downto 2);
+    signal intr             : std_logic_vector(5 downto 0); -- interrupt
+    signal S_reset          : std_logic;
+
+    -- io base
+    type T_iomap_range is array(0 to 1) of std_logic_vector(15 downto 0);
+    constant iomap_range: T_iomap_range := (x"F800", x"FFFF"); -- actual range is 0xFFFFF800 .. 0xFFFFFFFF
+
+    Function iomap_from (return INTEGER; r : T_iomap_range; base : T_iomap_range)
+    {
+        variable a1 : std_logic_vector(15 downto 0);
+        variable b1 : std_logic_vector(15 downto 0);
+        
+        a1 := r(0);
+        b1 := base(0);
+        return conv_integer(a1(11 downto 4) - b1(11 downto 4));
+    }
+    
+    Function iomap_to (return INTEGER; r : T_iomap_range; base : T_iomap_range)
+    {
+        variable a2 : std_logic_vector(15 downto 0);
+        variable b2 : std_logic_vector(15 downto 0);
+        
+        a2 := r(1);
+        b2 := base(0);
+        return conv_integer(a2(11 downto 4) - b2(11 downto 4));
+    }
+    
+    
+    -- Timer
+    constant iomap_timer  : T_iomap_range := (x"F900", x"F93F");
+    signal from_timer     : std_logic_vector(31 downto 0);
+    signal timer_ce       : std_logic;
+    signal S_ocp          : std_logic_vector(1 downto 0);
+    signal ocp_enable     : std_logic_vector(1 downto 0);
+    signal ocp_mux        : std_logic_vector(1 downto 0);
+    signal icp_enable     : std_logic_vector(1 downto 0);
+    signal timer_intr     : std_logic := '0';
+
+    -- GPIO
+    constant iomap_gpio   : T_iomap_range := (x"F800", x"F87F");
+    signal gpio_range     : std_logic := '0';
+    signal from_gpio      : std_logic_vector(31 downto 0);
+    signal gpio_ce        : std_logic;
+    signal gpio_intr      : std_logic;
+    signal gpio_intr_joint: std_logic := '0';
+
+    -- Serial I/O (RS232)
+    constant iomap_sio    : T_iomap_range := (x"FB00", x"FB3F");
+    signal from_sio       : std_logic_vector(31 downto 0);
+    signal sio_ce         : std_logic;
+    signal sio_tx         : std_logic;
+    signal sio_rx         : std_logic;
+    signal sio_break_internal: std_logic;
+
+    -- Simple I/O: onboard LEDs, buttons and switches
+    constant iomap_simple_in  : T_iomap_range := (x"FF00", x"FF0F");
+    constant iomap_simple_out : T_iomap_range := (x"FF10", x"FF1F");
+    signal R_simple_in    : std_logic_vector(31 downto 0);
+    signal R_simple_out   : std_logic_vector(31 downto 0);
+    
+    -- Debug
+    signal sio_to_debug_data : std_logic_vector(7 downto 0);
+    signal debug_to_sio_data : std_logic_vector(7 downto 0);
+    signal deb_sio_rx_done   : std_logic;
+    signal deb_sio_tx_busy   : std_logic;
+    signal deb_sio_tx_strobe : std_logic;
+    signal deb_tx            : std_logic;
+    signal debug_out_strobe  : std_logic;
+    signal debug_active      : std_logic;
+    
+    S_reset <= reset or sio_break_internal;
+    
+    -- f32c core
+    NewComponent Core
+    (
+        C_PC_mask          => x"ffffffff",
+        C_clk_freq         => C_clk_freq,
+        C_cpuid            => 0,
+        C_xram_base        => x"8",
+        C_icache_size      => 0,
+        C_dcache_size      => 0,
+        C_cached_addr_bits => 20,
+        C_debug            => C_debug,
+        
+        reset              => S_reset,
+        imem_addr_strobe   => imem_addr_strobe,
+        imem_addr          => imem_addr,
+        imem_data_in       => final_to_cpu_i,
+        imem_data_ready    => imem_data_ready,
+        dmem_addr_strobe   => dmem_addr_strobe,
+        dmem_write         => dmem_write,
+        dmem_byte_sel      => dmem_byte_sel,
+        dmem_addr          => dmem_addr,
+        dmem_data_in       => final_to_cpu_d,
+        dmem_data_out      => cpu_to_dmem,
+        dmem_data_ready    => dmem_data_ready,
+        intr               => intr,
+        -- debugging
+        debug_in_data      => sio_to_debug_data,
+        debug_in_strobe    => deb_sio_rx_done,
+        debug_in_busy      => open,
+        debug_out_data     => debug_to_sio_data,
+        debug_out_strobe   => deb_sio_tx_strobe,
+        debug_out_busy     => deb_sio_tx_busy,
+        debug_active       => debug_active,
+    );
+    -- both internal bram and external RAM are cached
+    -- the cache must distinguish between them so
+    -- RAM base address must be passed to cache module
+    -- it is not enough to only decode them here
+
+    -- f32c 'standard' RAM hardcoded at 0x80000000
+    -- using most significant address bit (bit 32), which is
+    --S_imem_addr_in_xram <= imem_addr(31);
+    --S_dmem_addr_in_xram <= dmem_addr(31);
+    
+    final_to_cpu_i  <= bram_i_to_cpu;
+    final_to_cpu_d  <= io_to_cpu when io_addr_strobe = '1' else bram_d_to_cpu;
+    imem_data_ready <= bram_i_ready;
+    dmem_data_ready <= io_addr_strobe or bram_d_ready;
+    
+    intr           <= "00" & gpio_intr_joint & timer_intr & from_sio(8) & '0';
+    io_addr_strobe <= dmem_addr_strobe when dmem_addr(31 downto 28) = x"F" -- iomap at 0xFxxxxxxx
+    else '0';
+    io_addr        <= '0' & dmem_addr(10 downto 2);
+    
+    NewComponent SIO
+    (
+        C_clk_freq              => C_clk_freq,
+        C_init_baudrate         => 115200,
+        C_fixed_baudrate        => false,
+        C_break_detect          => true,
+        
+        ce                      => sio_ce,
+        bus_write               => dmem_write,
+        byte_sel                => dmem_byte_sel,
+        bus_in                  => cpu_to_dmem,
+        bus_out                 => from_sio,
+        break                   => sio_break_internal,
+        rxd                     => sio_rx,
+        txd                     => sio_tx,
+    );
+    sio_ce    <= io_addr_strobe when io_addr(11 downto 6) = x"3" & "00" and conv_integer(io_addr(5 downto 4)) = 0 else '0';
+    sio_break <= sio_break_internal;
+    
+    sio_rx <= sio_rxd;
+    
+    --
+    -- Simple I/O
+    --
+    Process ()
+    {
+        If(rising_edge(clk) and io_addr_strobe = '1' and dmem_write = '1')
+        {
+            -- simple out
+            -- currently limted to 32 simple out bits (fixme for more)
+            If(conv_integer(io_addr(11 downto 4)) = iomap_from(iomap_simple_out, iomap_range))
+            {
+                For(i IN 0 to 3)
+                {
+                    If(dmem_byte_sel(i) = '1')
+                    {
+                        R_simple_out(i*8+7 downto i*8) <= cpu_to_dmem(i*8+7 downto i*8);
+                    }
+                }
+            }
+        }
+        If(rising_edge(clk))
+        {
+            R_simple_in(1 downto 0) <= simple_in(1 downto 0);
+        }
+    }
+    
+    Generate (for i in 0 to 1)
+    {
+        ocp_mux(i) <= S_ocp(i) when ocp_enable(i)='1' else R_simple_out(i);
+    }
+    simple_out <= R_simple_out(7 downto 2) & ocp_mux;
+    
+    -- big address decoder when CPU reads IO
+    Process ()
+    {
+        variable i: integer;
+        
+        If(null)
+        {
+            io_to_cpu <= (others => '-');
+            Case(conv_integer(io_addr(11 downto 4)))
+            {
+                When(iomap_from(iomap_gpio, iomap_range) to iomap_to(iomap_gpio, iomap_range))
+                {
+                    If(conv_integer(io_addr(6 downto 5)) = 0)
+                    {
+                        io_to_cpu <= from_gpio;
+                    }
+                }
+                When(iomap_from(iomap_timer, iomap_range) to iomap_to(iomap_timer, iomap_range))
+                {
+                    io_to_cpu <= from_timer;
+                }
+                When(iomap_from(iomap_sio, iomap_range) to iomap_to(iomap_sio, iomap_range))
+                {
+                    If(conv_integer(io_addr(5 downto 4)) = 0)
+                    {
+                        io_to_cpu <= from_sio;
+                    }
+                }
+                When(iomap_from(iomap_simple_in, iomap_range) to iomap_to(iomap_simple_in, iomap_range))
+                {
+                    If(conv_integer(io_addr(3 downto 2)) = 0)
+                    {
+                        io_to_cpu <= R_simple_in(31 downto 0);
+                    }
+                }
+                When(iomap_from(iomap_simple_out, iomap_range) to iomap_to(iomap_simple_out, iomap_range))
+                {
+                    If(conv_integer(io_addr(3 downto 2)) = 0)
+                    {
+                        io_to_cpu <= R_simple_out(31 downto 0);
+                    }
+                }
+                When(others)
+                {
+                    io_to_cpu <= (others => '-');
+                }
+            }
+        }
+    }
+    
+    NewComponent GPIO_Controller
+    (
+        C_bits    => 32,
+        
+        ce        => gpio_ce,
+        bus_write => dmem_write,
+        addr      => dmem_addr(4 downto 2),
+        byte_sel  => dmem_byte_sel,
+        bus_in    => cpu_to_dmem,
+        bus_out   => from_gpio,
+        gpio_irq  => gpio_intr,
+        gpio_phys => gpio(31 downto 0),
+    );
+    gpio_ce <= io_addr_strobe when conv_integer(io_addr(11 downto 5)) = 0 else '0';
+    
+    with conv_integer(io_addr(11 downto 4)) select
+    gpio_range <= '1' when iomap_from(iomap_gpio, iomap_range) to iomap_to(iomap_gpio, iomap_range),
+    '0' when others;
+    
+    gpio_intr_joint <= gpio_intr;
+    
+    -- Timer
+    NewComponent Timer
+    (
+        C_ocps     => 2,
+        C_icps     => 2,
+        C_pres     => 10,
+        C_bits     => 12,
+        
+        ce         => timer_ce,
+        bus_write  => dmem_write,
+        addr       => dmem_addr(5 downto 2),
+        byte_sel   => dmem_byte_sel,
+        bus_in     => cpu_to_dmem,
+        bus_out    => from_timer,
+        timer_irq  => timer_intr,
+        icp_enable => icp_enable, -- enable physical input
+        ocp_enable => ocp_enable, -- enable physical output
+        icp        => (others => '0'), -- input capture signal
+        ocp        => S_ocp, -- output compare signal
+    );
+    
+    with conv_integer(io_addr(11 downto 4)) select
+    timer_ce <= io_addr_strobe when iomap_from(iomap_timer, iomap_range) to iomap_to(iomap_timer, iomap_range),
+    '0' when others;
+    
+    -- Block RAM
+    dmem_bram_enable <= dmem_addr_strobe when dmem_addr(31 downto 28) = x"0" else '0';
+    
+    NewComponent BRAM
+    (
+        C_bram_size      => C_bram_size,
+        
+        imem_data_ready  => bram_i_ready,
+        imem_addr        => imem_addr,
+        imem_data_out    => bram_i_to_cpu,
+        dmem_addr_strobe => dmem_bram_enable,
+        dmem_data_ready  => bram_d_ready,
+        dmem_write       => dmem_write,
+        dmem_byte_sel    => dmem_byte_sel,
+        dmem_addr        => dmem_addr,
+        dmem_data_in     => cpu_to_dmem,
+        dmem_data_out    => bram_d_to_cpu,
+    );
+    
+    sio_txd <= sio_tx when not C_debug or debug_active = '0' else deb_tx;
+}
