@@ -16,3 +16,5 @@ scroll down, find FPGArduino, click it and click "Install"
 
 4) Optionally you may need to install libusb using [Zadig](https://zadig.akeo.ie/)
 
+This are the needed settings:
+![Arduino](ArduinoFPGArduino.png)
