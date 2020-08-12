@@ -35,11 +35,11 @@ Component BRAM
 (
     Include
     (
-        IEEE.STD_LOGIC_1164,
-        IEEE.STD_LOGIC_ARITH,
-        IEEE.STD_LOGIC_UNSIGNED,
-        f32c_pack,
-        boot_sio_mi32el,
+        IEEE.STD_LOGIC_1164.all,
+        IEEE.STD_LOGIC_ARITH.all,
+        IEEE.STD_LOGIC_UNSIGNED.all,
+        f32c_pack.all,
+        boot_sio_mi32el.all,
     );
     
     Generic
