@@ -2,63 +2,6 @@
 <ProjectRoot xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
   <Header>FPGArduino</Header>
   <Items xsi:type="ProjectFolder">
-    <Header>Generated</Header>
-    <Items xsi:type="ProjectFile">
-      <Header>ALU.vhd</Header>
-    </Items>
-    <Items xsi:type="ProjectFile">
-      <Header>BarrelShifter.vhd</Header>
-    </Items>
-    <Items xsi:type="ProjectFile">
-      <Header>boot_sio_mi32el.vhd</Header>
-    </Items>
-    <Items xsi:type="ProjectFile">
-      <Header>BPTrace.vhd</Header>
-    </Items>
-    <Items xsi:type="ProjectFile">
-      <Header>BRAM.vhd</Header>
-    </Items>
-    <Items xsi:type="ProjectFile">
-      <Header>Core.vhd</Header>
-    </Items>
-    <Items xsi:type="ProjectFile">
-      <Header>f32c_pack.vhd</Header>
-    </Items>
-    <Items xsi:type="ProjectFile">
-      <Header>FPGArduino.vhd</Header>
-    </Items>
-    <Items xsi:type="ProjectFile">
-      <Header>GPIO_Controller.vhd</Header>
-    </Items>
-    <Items xsi:type="ProjectFile">
-      <Header>InstructionDecoder.vhd</Header>
-    </Items>
-    <Items xsi:type="ProjectFile">
-      <Header>LoadAligner.vhd</Header>
-    </Items>
-    <Items xsi:type="ProjectFile">
-      <Header>mi32_pack.vhd</Header>
-    </Items>
-    <Items xsi:type="ProjectFile">
-      <Header>Multiplier.vhd</Header>
-    </Items>
-    <Items xsi:type="ProjectFile">
-      <Header>Pipeline.vhd</Header>
-    </Items>
-    <Items xsi:type="ProjectFile">
-      <Header>RegisterRAM.vhd</Header>
-    </Items>
-    <Items xsi:type="ProjectFile">
-      <Header>SIO.vhd</Header>
-    </Items>
-    <Items xsi:type="ProjectFile">
-      <Header>SoC_Top.vhd</Header>
-    </Items>
-    <Items xsi:type="ProjectFile">
-      <Header>Timer.vhd</Header>
-    </Items>
-  </Items>
-  <Items xsi:type="ProjectFolder">
     <Header>SoC</Header>
     <Items xsi:type="ProjectFolder">
       <Header>CPU</Header>
