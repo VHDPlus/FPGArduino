@@ -33,10 +33,10 @@ Component Core
 (
     Include
     (
-        ieee.std_logic_1164,
-        ieee.std_logic_unsigned,
-        ieee.math_real,
-        f32c_pack,
+        ieee.std_logic_1164.all,
+        ieee.std_logic_unsigned.all,
+        ieee.math_real.all,
+        f32c_pack.all,
     );
     
     Generic
