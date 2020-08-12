@@ -29,12 +29,12 @@ Component SoC_Top
 (
     Include
     (
-        IEEE.STD_LOGIC_1164,
-        IEEE.STD_LOGIC_ARITH,
-        IEEE.STD_LOGIC_UNSIGNED,
-        IEEE.MATH_REAL,
-        ieee.numeric_std,
-        f32c_pack,
+        IEEE.STD_LOGIC_1164.all,
+        IEEE.STD_LOGIC_ARITH.all,
+        IEEE.STD_LOGIC_UNSIGNED.all,
+        IEEE.MATH_REAL.all,
+        ieee.numeric_std.all,
+        f32c_pack.all,
     );
     
     Generic
