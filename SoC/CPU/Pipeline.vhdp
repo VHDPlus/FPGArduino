@@ -26,11 +26,11 @@ Component Pipeline
 (
     Include
     (
-        ieee.std_logic_1164,
-        ieee.std_logic_arith,
-        ieee.std_logic_unsigned,
-        f32c_pack,
-        mi32_pack,
+        ieee.std_logic_1164.all,
+        ieee.std_logic_arith.all,
+        ieee.std_logic_unsigned.all,
+        f32c_pack.all,
+        mi32_pack.all,
     );
     
     Generic
