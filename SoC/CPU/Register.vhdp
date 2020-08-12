@@ -30,10 +30,10 @@ Component RegisterRAM
 (
     Include
     (
-        ieee.std_logic_1164,
-        ieee.std_logic_arith,
-        ieee.std_logic_unsigned,
-        ieee.numeric_std,
+        ieee.std_logic_1164.all,
+        ieee.std_logic_arith.all,
+        ieee.std_logic_unsigned.all,
+        ieee.numeric_std.all,
     );
     
     Generic
