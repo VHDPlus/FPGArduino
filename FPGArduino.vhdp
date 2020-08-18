@@ -1,14 +1,14 @@
 Main
 (
-    rs232_txd : out std_logic;
-    rs232_rxd : in std_logic;
-    led       : out std_logic_vector(7 downto 0);
-    gpio      : inout std_logic_vector(31 downto 0);
-    btn_left  : in std_logic;
-    btn_right : in std_logic;
+    rs232_txd : OUT   std_logic;
+    rs232_rxd : IN    std_logic;
+    led       : OUT   std_logic_vector(7 downto 0);
+    gpio      : INOUT std_logic_vector(31 downto 0);
+    btn_left  : IN    std_logic;
+    btn_right : IN    std_logic;
 )
 {
-    signal btns: std_logic_vector(1 downto 0);
+    SIGNAL btns: std_logic_vector(1 downto 0);
     
     SIGNAL clk81 : STD_LOGIC;
   
